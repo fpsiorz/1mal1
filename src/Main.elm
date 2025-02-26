@@ -1,8 +1,7 @@
 module Main exposing (..)
 
-import Array
 import Browser exposing (Document)
-import Element exposing (Element, alignRight, centerX, centerY, column, el, fill, padding, px, rgb255, row, spacing, text, width)
+import Element exposing (Color, Element, alignRight, centerX, centerY, column, el, fill, fromRgb, padding, px, rgb, rgb255, row, spacing, text, toRgb, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -42,6 +41,7 @@ type alias InGameModel =
     , text : String
     , score : Int
     , remainingSeconds : Int
+    , feedback : Feedback
     }
 
 
@@ -155,6 +155,7 @@ startGame mode =
         , mode = mode
         , remainingSeconds = 60
         , text = ""
+        , feedback = SyntaxError
         }
     , generateQuestion mode
     )
@@ -179,26 +180,52 @@ updateInGame msg model =
         Submit ->
             case String.toInt model.text of
                 Nothing ->
-                    ( InGame model, Cmd.none )
+                    ( InGame { model | feedback = SyntaxError }, Cmd.none )
 
                 Just result ->
                     if result == model.question.result then
-                        ( InGame { model | score = model.score + 1, text = "" }, generateQuestion model.mode )
+                        ( InGame
+                            { model
+                                | score = model.score + 1
+                                , text = ""
+                                , feedback = Correct
+                            }
+                        , generateQuestion model.mode
+                        )
 
                     else
                         ( InGame
                             { model
                                 | score = reduceScore model.score
                                 , text = ""
+                                , feedback = Incorrect
                             }
                         , generateQuestion model.mode
                         )
 
         ChangeText newText ->
-            ( InGame { model | text = newText }, Cmd.none )
+            if newText == "" && model.text == "" then
+                ( InGame model, Cmd.none )
+
+            else
+                ( InGame
+                    { model
+                        | text = newText
+                        , feedback =
+                            if newText == "" then
+                                model.feedback
+
+                            else if String.toInt newText == Nothing then
+                                SyntaxError
+
+                            else
+                                Ready
+                    }
+                , Cmd.none
+                )
 
         NewQuestion question ->
-            ( InGame { model | question = question }
+            ( InGame { model | question = question, text = "" }
             , Cmd.none
             )
 
@@ -269,29 +296,33 @@ viewBody model =
                 viewGameOver score
 
 
-viewAttributes =
+viewAttributes baseColor =
     [ centerX
     , centerY
     , spacing 30
     , padding 30
     , Border.rounded 4
-    , Border.width 1
-    , Border.color darkGreen
-    , Background.color lightGreen
+    , Border.width 4
+    , Border.color <| dark <| baseColor
+    , Background.color <| pale <| baseColor
     , width (px 400)
     ]
 
 
 viewWelcome =
     column
-        viewAttributes
-        [ el [ centerX, Font.size 50 ] (text "Willkommen!")
+        (viewAttributes <| rgb 0.5 0.5 0.5)
+        [ el [ centerX, Font.size 50 ] (text "Hallo Arri!")
         , text "Lust auf Mathe?"
-        , startButton "Plus" Additions
-        , startButton "Minus" Subtractions
-        , startButton "Mal" Multiplications
-        , startButton "Geteilt" Divisions
-        , startButton "Durcheinander" Mixed
+        , row [ Element.width fill, spacing 30 ]
+            [ startButton "Plus ➕" Additions
+            , startButton "Minus ➖" Subtractions
+            ]
+        , row [ Element.width fill, spacing 30 ]
+            [ startButton "Mal ✖️" Multiplications
+            , startButton "Geteilt ➗" Divisions
+            ]
+        , startButton "Durcheinander ❔" Mixed
         ]
 
 
@@ -301,7 +332,7 @@ viewGameOver score =
             gameOverMessage score
     in
     column
-        viewAttributes
+        (viewAttributes <| rgb 0.5 0.5 0.5)
         [ el [ centerX, Font.size 50 ] (text <| String.fromInt score ++ " Punkte")
         , text message
         , text "Schaffst du noch mehr?"
@@ -310,19 +341,19 @@ viewGameOver score =
 
 
 gameOverMessage score =
-    if score < 10 then
+    if score < 5 then
         ( "😐", "Nächstes Mal wird's bestimmt besser!" )
 
-    else if score < 20 then
+    else if score < 10 then
         ( "🙂", "Gut gemacht!" )
 
-    else if score < 30 then
+    else if score < 15 then
         ( "😎", "Mega!" )
 
-    else if score < 40 then
+    else if score < 20 then
         ( "😍", "Superduper!" )
 
-    else if score < 50 then
+    else if score < 25 then
         ( "🥳", "Juhu! Das war ja fantastisch!" )
 
     else
@@ -331,18 +362,22 @@ gameOverMessage score =
 
 startButton label mode =
     Input.button
-        [ Background.color darkGreen
-        , Font.color <| rgb255 255 255 255
+        [ Background.color <| pale <| modeColor mode
+        , Border.color <| dark <| modeColor mode
+        , Font.color <| rgb255 0 0 0
         , Border.rounded 4
+        , Border.width 4
         , padding 10
         , centerX
+        , Element.width fill
+        , Font.center
         ]
         { onPress = Just <| StartGame mode, label = text label }
 
 
 menuButton label =
     Input.button
-        [ Background.color darkGreen
+        [ Background.color <| dark greenColor
         , Font.color <| rgb255 255 255 255
         , Border.rounded 4
         , padding 10
@@ -351,26 +386,88 @@ menuButton label =
         { onPress = Just MainMenu, label = text label }
 
 
-darkRed =
-    rgb255 128 0 0
+redColor =
+    rgb 1 0 0
 
 
-darkGreen =
-    rgb255 0 128 0
+greenColor =
+    rgb 0 1 0
 
 
-lightGreen =
-    rgb255 220 255 220
+blueColor =
+    rgb 0 1 1
+
+
+yellowColor =
+    rgb 1 1 0
+
+
+purpleColor =
+    rgb 0.5 0 1
+
+
+grayColor =
+    rgb 0.5 0.5 0.5
+
+
+modeColor : Mode -> Color
+modeColor mode =
+    case mode of
+        Additions ->
+            yellowColor
+
+        Subtractions ->
+            redColor
+
+        Multiplications ->
+            blueColor
+
+        Divisions ->
+            greenColor
+
+        Mixed ->
+            purpleColor
+
+
+pale : Color -> Color
+pale arg =
+    let
+        { red, green, blue } =
+            toRgb arg
+
+        whiten =
+            \c -> 0.25 * c + 0.75
+    in
+    fromRgb
+        { red = whiten red
+        , green = whiten green
+        , blue = whiten blue
+        , alpha = 1.0
+        }
+
+
+dark : Color -> Color
+dark arg =
+    let
+        { red, green, blue } =
+            toRgb arg
+    in
+    fromRgb
+        { red = 0.5 * red
+        , green = 0.5 * green
+        , blue = 0.5 * blue
+        , alpha = 1.0
+        }
 
 
 viewInGame : InGameModel -> Element Msg
-viewInGame { question, score, text, remainingSeconds } =
+viewInGame { question, score, text, remainingSeconds, mode, feedback } =
     column
-        viewAttributes
+        (viewAttributes <| modeColor mode)
         [ topBar score remainingSeconds
         , questionLine question
         , inputBox text
-        , answerButton
+        , answerButton feedback
         ]
 
 
@@ -426,11 +523,43 @@ inputBox text =
         }
 
 
-answerButton =
+type Feedback
+    = Correct
+    | Incorrect
+    | SyntaxError
+    | Ready
+
+
+answerButton feedback =
+    let
+        ( color, feedbackText ) =
+            case feedback of
+                Correct ->
+                    ( greenColor, "Richtig!" )
+
+                Incorrect ->
+                    ( redColor, "Falsch!" )
+
+                Ready ->
+                    ( grayColor, "Prüfen" )
+
+                SyntaxError ->
+                    ( grayColor, "Zahl eingeben" )
+
+        onPress =
+            if feedback == Ready then
+                Just Submit
+
+            else
+                Nothing
+    in
     Input.button
-        [ Background.color darkGreen
-        , Font.color <| rgb255 255 255 255
+        [ Background.color <| pale color
+        , Border.color <| dark color
+        , Font.color <| rgb255 0 0 0
         , Border.rounded 4
+        , Border.width 4
         , padding 10
+        , centerX
         ]
-        { onPress = Just Submit, label = text "Überprüfen" }
+        { onPress = onPress, label = text feedbackText }
