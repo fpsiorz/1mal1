@@ -1,7 +1,29 @@
 module Main exposing (..)
 
 import Browser exposing (Document)
-import Element exposing (Color, Element, alignRight, centerX, centerY, column, el, fill, fromRgb, padding, px, rgb, rgb255, row, spacing, text, toRgb, width)
+import Element
+    exposing
+        ( Color
+        , Element
+        , alignRight
+        , centerX
+        , centerY
+        , column
+        , el
+        , fill
+        , fromRgb
+        , mouseDown
+        , padding
+        , px
+        , rgb
+        , rgb255
+        , row
+        , shrink
+        , spacing
+        , text
+        , toRgb
+        , width
+        )
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -335,25 +357,26 @@ viewGameOver score =
         (viewAttributes <| rgb 0.5 0.5 0.5)
         [ el [ centerX, Font.size 50 ] (text <| String.fromInt score ++ " Punkte")
         , text message
+        , el [ Font.size 300 ] <| text pic
         , text "Schaffst du noch mehr?"
-        , menuButton "Nochmal"
+        , el [ width shrink, centerX ] <| menuButton "Menü"
         ]
 
 
 gameOverMessage score =
-    if score < 5 then
+    if score < 4 then
         ( "😐", "Nächstes Mal wird's bestimmt besser!" )
 
-    else if score < 10 then
+    else if score < 8 then
         ( "🙂", "Gut gemacht!" )
 
-    else if score < 15 then
+    else if score < 12 then
         ( "😎", "Mega!" )
 
-    else if score < 20 then
+    else if score < 16 then
         ( "😍", "Superduper!" )
 
-    else if score < 25 then
+    else if score < 20 then
         ( "🥳", "Juhu! Das war ja fantastisch!" )
 
     else
@@ -361,29 +384,28 @@ gameOverMessage score =
 
 
 startButton label mode =
+    button (modeColor mode) label (Just <| StartGame mode)
+
+
+menuButton label =
+    button greenColor label (Just MainMenu)
+
+
+button : Color -> String -> Maybe msg -> Element msg
+button color label action =
     Input.button
-        [ Background.color <| pale <| modeColor mode
-        , Border.color <| dark <| modeColor mode
-        , Font.color <| rgb255 0 0 0
+        [ Background.color <| pale color
+        , Border.color <| dark color
+        , Font.color <| rgb 0 0 0
         , Border.rounded 4
         , Border.width 4
         , padding 10
         , centerX
         , Element.width fill
         , Font.center
+        , mouseDown [ Background.color <| dark color, Font.color <| rgb 1 1 1 ]
         ]
-        { onPress = Just <| StartGame mode, label = text label }
-
-
-menuButton label =
-    Input.button
-        [ Background.color <| dark greenColor
-        , Font.color <| rgb255 255 255 255
-        , Border.rounded 4
-        , padding 10
-        , centerX
-        ]
-        { onPress = Just MainMenu, label = text label }
+        { onPress = action, label = text label }
 
 
 redColor =
@@ -553,13 +575,4 @@ answerButton feedback =
             else
                 Nothing
     in
-    Input.button
-        [ Background.color <| pale color
-        , Border.color <| dark color
-        , Font.color <| rgb255 0 0 0
-        , Border.rounded 4
-        , Border.width 4
-        , padding 10
-        , centerX
-        ]
-        { onPress = onPress, label = text feedbackText }
+    el [ width shrink, centerX ] <| button color feedbackText onPress
